@@ -8,7 +8,7 @@
   "license": "MIT",
   "dependencies": {
     "@xgraph/core": "^1.0.0",
-    "@xgraph/q": "^1.1.0",
+    "@xgraph/q": "^1.2.1",
     "@xgraph/tx": "^1.0.0",
     "uuid": "^3.3.2"
   },

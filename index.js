@@ -142,6 +142,10 @@ module.exports = class XGraph {
         return this._wrapVertex(id);
       }
     };
+    create.find = query => {
+      const { results } = this.query`(results:${q.raw(type)}${query})`;
+      return results;
+    };
     return create;
   }
 

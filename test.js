@@ -161,3 +161,13 @@ test('Auto rollback of ref', t => {
   const { results } = xg.query`(results:Person{name:"Test"})`;
   t.is(results.length, 0);
 });
+
+test('Query a model type', t => {
+  const { person } = scenario();
+  const results = person.find({
+    name: {
+      $size: 3,
+    },
+  });
+  t.is(results.length, 2);
+});

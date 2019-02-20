@@ -40,7 +40,7 @@ test('auto flush', async t => {
 });
 
 test('Persist graph', async t => {
-  t.context.file = path.join(__dirname, '1.data');
+  t.context.file = path.join(__dirname, 'data', '1.data');
   const xg = new XGraph(t.context.file);
   const person = xg.createModelType('Person');
   const p = person({ name: 'Foo' });
@@ -49,14 +49,39 @@ test('Persist graph', async t => {
   t.is(p.name, 'Bar');
   p.flush();
   t.is(p.name, 'Bar');
+  p.name = 'Spam';
+  p.flush();
   await new Promise(resolve => {
     setTimeout(() => {
-      const xg2 = new XGraph(path.join(__dirname, '1.data'));
+      const xg2 = new XGraph(t.context.file);
       const person = xg2.createModelType('Person');
       const p2 = person.findById(p.id);
-      t.is(p2.name, 'Bar');
+      t.is(p2.name, 'Spam');
       resolve();
-    }, 100);
+    }, 50);
+  });
+});
+
+test('Persist graph without data dir', async t => {
+  t.context.file = path.join('.', '2.data');
+  const xg = new XGraph(t.context.file);
+  const person = xg.createModelType('Person');
+  const p = person({ name: 'Foo' });
+  t.is(p.name, 'Foo');
+  p.name = 'Bar';
+  t.is(p.name, 'Bar');
+  p.flush();
+  t.is(p.name, 'Bar');
+  p.name = 'Spam';
+  p.flush();
+  await new Promise(resolve => {
+    setTimeout(() => {
+      const xg2 = new XGraph(t.context.file);
+      const person = xg2.createModelType('Person');
+      const p2 = person.findById(p.id);
+      t.is(p2.name, 'Spam');
+      resolve();
+    }, 50);
   });
 });
 

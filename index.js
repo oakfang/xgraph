@@ -3,19 +3,26 @@ const uuid = require('uuid');
 const Graph = require('@xgraph/core');
 const q = require('@xgraph/q');
 const tx = require('@xgraph/tx');
+const Persister = require('./persist');
 
 module.exports = class XGraph {
   constructor(dataPath) {
     this._fsLock = false;
     this.__graph = null;
-    this._dataPath = dataPath;
-    if (this._dataPath && fs.existsSync(this._dataPath)) {
-      const data = JSON.parse(
-        fs.readFileSync(this._dataPath, { encoding: 'utf8' })
-      );
+    if (dataPath) {
+      this._persister = new Persister(dataPath);
+    }
+    const data = this._persister && this._persister.readJSON();
+    if (data) {
       this._graph = Graph.fromObject(data);
     } else {
       this._graph = new Graph();
+    }
+  }
+
+  _persist() {
+    if (this._persister) {
+      this._persister.writeJSON(this._graph.toObject());
     }
   }
 
@@ -34,16 +41,7 @@ module.exports = class XGraph {
         onCommit: () => {
           this._graph = this.__graph;
           this.__graph = null;
-          if (this._dataPath) {
-            this._fsLock = (this._fsLock || Promise.resolve()).then(
-              () =>
-                new Promise(resolve => {
-                  const obj = this._graph.toObject();
-                  const data = JSON.stringify(obj);
-                  fs.writeFile(this._dataPath, data, resolve);
-                })
-            );
-          }
+          this._persist();
         },
         onRollback: () => {
           this._graph = this.__graph;

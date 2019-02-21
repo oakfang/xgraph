@@ -110,6 +110,7 @@ function scenario() {
   const animal = xg.createModelType('Animal');
   const foo = person({ name: 'Foo' });
   const bar = person({ name: 'Bar' });
+  person({ name: 'Spam' });
   const home = place({ name: 'Home' });
   const pt = place({ name: 'Petah Tikva' });
   const cat = animal({ name: 'Mitzi' });
@@ -118,7 +119,7 @@ function scenario() {
   bar.$.owns.add(cat);
   bar.$.likes.add(cat);
   foo.$.visited.add(home, { at: Date.now() });
-  bar.$.visited.add(pt, { at: Date.now() });
+  bar._.livesIn = pt;
   return { xg, person, place, animal };
 }
 
@@ -139,9 +140,9 @@ qTest(
   'multiple hops test',
   `(?withFriends)-[:friend]->(:Person)-[visits:visited]->(places)`,
   {
-    withFriends: 2,
-    visits: 2,
-    places: 2,
+    withFriends: 1,
+    visits: 1,
+    places: 1,
   }
 );
 
@@ -195,4 +196,22 @@ test('Query a model type', t => {
     },
   });
   t.is(results.length, 2);
+  t.is(person.find().length, 3);
+});
+
+test('Check connection', t => {
+  const { person } = scenario();
+  const [foo, bar] = person.find({ name: { $not: 'Spam' } });
+  t.is(foo.$.friend.has(bar), true);
+});
+
+test('Singular connection', t => {
+  const { gx, person } = scenario();
+  const [bar] = person.find({ name: 'Bar' });
+  const pt = bar._.livesIn;
+  t.is(pt.type, 'Place');
+  delete bar._.livesIn;
+  t.is(bar._.livesIn, null);
+  delete bar._.livesIn;
+  t.is(bar._.livesIn, null);
 });

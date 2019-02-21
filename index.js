@@ -1,57 +1,45 @@
-const fs = require('fs');
-const uuid = require('uuid');
-const Graph = require('@xgraph/core');
-const q = require('@xgraph/q');
-const tx = require('@xgraph/tx');
-const Persister = require('./persist');
+const BaseGraph = require('./lib/base');
 
-module.exports = class XGraph {
-  constructor(dataPath) {
-    this._fsLock = false;
-    this.__graph = null;
-    if (dataPath) {
-      this._persister = new Persister(dataPath);
-    }
-    const data = this._persister && this._persister.readJSON();
-    if (data) {
-      this._graph = Graph.fromObject(data);
-    } else {
-      this._graph = new Graph();
-    }
-  }
-
-  _persist() {
-    if (this._persister) {
-      this._persister.writeJSON(this._graph.toObject());
-    }
-  }
-
-  withTx(cb) {
-    if (this.__graph) {
-      return cb();
-    }
-    this.__graph = this._graph;
-    tx(
-      this._graph,
-      ({ graph }) => {
-        this._graph = graph;
-        cb();
-      },
+module.exports = class XGraph extends BaseGraph {
+  _getSingleEdgesProxy(vid) {
+    return new Proxy(
+      {},
       {
-        onCommit: () => {
-          this._graph = this.__graph;
-          this.__graph = null;
-          this._persist();
+        get: (_, type) => {
+          const [edge] = this._graph
+            .outEdges(vid)
+            .filter(e => e.type === type)
+            .limit(1);
+          if (!edge) {
+            return null;
+          }
+          const { target, properties } = edge;
+          return this._wrapVertexInstance(target, properties);
         },
-        onRollback: () => {
-          this._graph = this.__graph;
-          this.__graph = null;
+        set: (_, type, target) => {
+          const { $backtrace, id: tid } = target;
+          this.withTx(() => {
+            this._graph.setEdge(vid, tid, type, $backtrace);
+          });
+          return true;
+        },
+        deleteProperty: (_, type) => {
+          this.withTx(() => {
+            const [edge] = this._graph
+              .outEdges(vid)
+              .filter(e => e.type === type)
+              .limit(1);
+            if (!edge) {
+              return null;
+            }
+            this._graph.removeEdge(edge.origin.id, edge.target.id, type);
+          });
         },
       }
     );
   }
 
-  _getEdgesProxy(vid) {
+  _getMultiEdgesProxy(vid) {
     return new Proxy(
       {},
       {
@@ -70,6 +58,9 @@ module.exports = class XGraph {
                 this._graph.setEdge(target.id, vid, type, properties);
               }
             });
+          },
+          has: target => {
+            return this._graph.hasEdge(vid, target.id, type);
           },
           remove: (target, mutual = false) => {
             this.withTx(() => {
@@ -101,7 +92,10 @@ module.exports = class XGraph {
             return flush;
           }
           if (prop === '$') {
-            return this._getEdgesProxy(v.id);
+            return this._getMultiEdgesProxy(v.id);
+          }
+          if (prop === '_') {
+            return this._getSingleEdgesProxy(v.id);
           }
           if (prop === '$backtrace') {
             return edgeProps;
@@ -121,52 +115,5 @@ module.exports = class XGraph {
         },
       }
     );
-  }
-
-  _wrapVertex(id, edgeProps) {
-    return this._wrapVertexInstance(this._graph.vertex(id), edgeProps);
-  }
-
-  createModelType(type) {
-    const create = props => {
-      const id = uuid();
-      this.withTx(() => {
-        this._graph.setVertex(id, type, props);
-      });
-      return this._wrapVertex(id);
-    };
-    create.findById = id => {
-      if (this._graph.hasVertex(id)) {
-        return this._wrapVertex(id);
-      }
-    };
-    create.find = query => {
-      const { results } = this.query`(results:${q.raw(type)}${query})`;
-      return results;
-    };
-    return create;
-  }
-
-  query(queryFragments, ...values) {
-    const results = Array.isArray(queryFragments)
-      ? q(this._graph)(queryFragments, ...values)
-      : q(this._graph, queryFragments);
-    const wrap = this._wrapVertexInstance.bind(this);
-    return Object.keys(results).reduce((final, vName) => {
-      final[vName] = results[vName].map(result =>
-        result.id
-          ? wrap(result)
-          : {
-              ...result,
-              get origin() {
-                return wrap(result.origin, result.properties);
-              },
-              get target() {
-                return wrap(result.target, result.properties);
-              },
-            }
-      );
-      return final;
-    }, {});
   }
 };

@@ -105,7 +105,11 @@ test('Some edges stuff', t => {
 
 function scenario() {
   const xg = new XGraph();
-  const person = xg.createModelType('Person');
+  const person = xg.createModelType('Person', {
+    get likeCount() {
+      return Array.from(this.$.likes.get()).length;
+    },
+  });
   const place = xg.createModelType('Place');
   const animal = xg.createModelType('Animal');
   const foo = person({ name: 'Foo' });
@@ -206,7 +210,7 @@ test('Check connection', t => {
 });
 
 test('Singular connection', t => {
-  const { gx, person } = scenario();
+  const { person } = scenario();
   const [bar] = person.find({ name: 'Bar' });
   const pt = bar._.livesIn;
   t.is(pt.type, 'Place');
@@ -214,4 +218,10 @@ test('Singular connection', t => {
   t.is(bar._.livesIn, null);
   delete bar._.livesIn;
   t.is(bar._.livesIn, null);
+});
+
+test('model proto', t => {
+  const { person } = scenario();
+  const [bar] = person.find({ name: 'Bar' });
+  t.is(bar.likeCount, 1);
 });

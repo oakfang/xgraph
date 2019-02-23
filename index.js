@@ -1,5 +1,18 @@
 const BaseGraph = require('./lib/base');
 
+function getBoundObject(ctx, proto) {
+  return Reflect.ownKeys(proto).reduce((bound, prop) => {
+    const desc = Reflect.getOwnPropertyDescriptor(proto, prop);
+    ['get', 'set', 'value'].forEach(dProp => {
+      if (typeof desc[dProp] === 'function') {
+        desc[dProp] = desc[dProp].bind(ctx);
+      }
+    });
+    Object.defineProperty(bound, prop, desc);
+    return bound;
+  }, {});
+}
+
 module.exports = class XGraph extends BaseGraph {
   _getSingleEdgesProxy(vid) {
     return new Proxy(
@@ -76,6 +89,7 @@ module.exports = class XGraph extends BaseGraph {
   }
 
   _wrapVertexInstance(v, edgeProps) {
+    const proto = this._protos[v.type];
     let sets = {};
     const flush = () => {
       this.withTx(() => {
@@ -84,10 +98,14 @@ module.exports = class XGraph extends BaseGraph {
       });
       sets = {};
     };
-    return new Proxy(
+    let bound;
+    const instance = new Proxy(
       {},
       {
         get: (_, prop) => {
+          if (bound && prop in bound) {
+            return bound[prop];
+          }
           if (prop === 'flush') {
             return flush;
           }
@@ -115,5 +133,9 @@ module.exports = class XGraph extends BaseGraph {
         },
       }
     );
+    if (proto) {
+      bound = getBoundObject(instance, proto);
+    }
+    return instance;
   }
 };

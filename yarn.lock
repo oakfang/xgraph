@@ -97,10 +97,10 @@
   dependencies:
     itercol "^2.1.0"
 
-"@xgraph/q@^1.2.1":
-  version "1.2.1"
-  resolved "https://registry.yarnpkg.com/@xgraph/q/-/q-1.2.1.tgz#239b9e7d5b4bd35789533164f0c7577b6e2ae61c"
-  integrity sha512-jVOLcE1wPOZuAzHHf78uxphm+Yye7kKnq+HkWtAJHWAabr9kSiGJI2uzN1Qd9R9xUsdypD7Pgs9Y8kykg4MEmg==
+"@xgraph/q@^1.2.2":
+  version "1.2.2"
+  resolved "https://registry.yarnpkg.com/@xgraph/q/-/q-1.2.2.tgz#148ee636c40968e6d9a31fde1206b7b8f4bf3e2e"
+  integrity sha512-VewyGJGxXInsY1P6KL3/chXWzlegZIFMAlKZKAdivw1rmNfrjlonpMzcmg9w+GqVTJz9y0b7r/JVoy0mgrYY2Q==
   dependencies:
     acorn "^6.1.0"
     json-predicate "^0.9.5"
